@@ -7,13 +7,14 @@ import {
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyADoKPcm038rqhPMLYwkC6JRr2b8-YT3ek",
-  authDomain: "research-paper-6b36a.firebaseapp.com",
-  projectId: "research-paper-6b36a",
-  storageBucket: "research-paper-6b36a.firebasestorage.app",
-  messagingSenderId: "161155176990",
-  appId: "1:161155176990:web:51f1321a54a4561153ec0f"
+  apiKey: "AIzaSyAqe3qeXP77wkcYoRaTf9-Dwir8ooTORnI",
+  authDomain: "collaboratov2.firebaseapp.com",
+  projectId: "collaboratov2",
+  storageBucket: "collaboratov2.appspot.com",   
+  messagingSenderId: "1067743158668",
+  appId: "1:1067743158668:web:a572147bf1f6acc387b6a9"
 };
+
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);

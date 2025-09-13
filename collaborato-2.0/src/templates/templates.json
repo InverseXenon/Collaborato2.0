@@ -1,0 +1,22 @@
+{
+  "blank": {
+    "key": "blank",
+    "name": "Blank",
+    "content": "<h1>Title</h1><p>Start writing your paper...</p>"
+  },
+  "ieee": {
+    "key": "ieee",
+    "name": "IEEE",
+    "content": "<h1>Title of the Paper</h1><p><strong>Abstract</strong></p><p>[Write abstract here]</p><h2>1. Introduction</h2><p>[Introduction]</p><h2>2. Related Work</h2><p>[Related Work]</p><h2>3. Method</h2><p>[Method]</p><h2>4. Results</h2><p>[Results]</p><h2>5. Conclusion</h2><p>[Conclusion]</p>"
+  },
+  "acm": {
+    "key": "acm",
+    "name": "ACM",
+    "content": "<h1>Paper Title</h1><p><em>Abstract:</em></p><p>[Abstract]</p><h2>Introduction</h2><p>[Intro]</p><h2>Background</h2><p>[Background]</p><h2>Approach</h2><p>[Approach]</p><h2>Experiments</h2><p>[Experiments]</p>"
+  },
+  "nature": {
+    "key": "nature",
+    "name": "Nature",
+    "content": "<h1>Title</h1><p><strong>Abstract</strong></p><p>[abstract]</p><h2>Main</h2><p>[Main content]</p><h2>Methods</h2><p>[Methods]</p><h2>References</h2><p>[References]</p>"
+  }
+}
