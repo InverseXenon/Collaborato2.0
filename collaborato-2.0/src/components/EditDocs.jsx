@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   doc,
   onSnapshot,
@@ -16,6 +16,7 @@ import html2canvas from "html2canvas";
 
 export default function EditDocs() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [title, setTitle] = useState("");
@@ -26,13 +27,14 @@ export default function EditDocs() {
   const quillRef = useRef(null);
   const saveTimer = useRef(null);
 
-  // Firestore: initial load & real-time content
+  /* ------------------- Firestore initial load ------------------- */
   useEffect(() => {
     const ref = doc(db, "documents", id);
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) {
         const data = snap.data();
         setTitle(data.title || "Untitled");
+        // Update editor only if not focused
         if (quillRef.current && !quillRef.current.getEditor().hasFocus()) {
           quillRef.current.getEditor().setContents(data.content || []);
         }
@@ -42,12 +44,14 @@ export default function EditDocs() {
     return () => unsub();
   }, [id]);
 
-  // Socket.io presence + deltas
+  /* ------------------- Socket presence + deltas ------------------- */
   useEffect(() => {
     if (!user) return;
-    socket.emit("join-doc", id, { uid: user.uid, email: user.email });
 
-    socket.on("receive-delta", (delta) => {
+    // join room
+    socket.emit("join-doc", { docId: id, user: { uid: user.uid, email: user.email } });
+
+    socket.on("receive-delta", ({ delta }) => {
       quillRef.current?.getEditor().updateContents(delta);
     });
 
@@ -57,21 +61,19 @@ export default function EditDocs() {
     });
 
     socket.on("presence", (list) => {
-      const unique = Array.from(
-        new Map(list.map((u) => [u.uid, u])).values()
-      );
+      const unique = Array.from(new Map(list.map((u) => [u.uid, u])).values());
       setOnlineUsers(unique);
     });
 
     return () => {
-      socket.emit("leave-doc", id, { uid: user.uid });
+      socket.emit("leave-doc", { docId: id, uid: user.uid });
       socket.off("receive-delta");
       socket.off("user-typing");
       socket.off("presence");
     };
   }, [id, user]);
 
-  // Save to Firestore every 2s
+  /* ------------------- Save to Firestore ------------------- */
   const queueSave = () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
@@ -79,11 +81,12 @@ export default function EditDocs() {
         content: quillRef.current?.getEditor().getContents(),
         updatedAt: serverTimestamp(),
       });
-    }, 2000);
+    }, 1500);
   };
 
   const handleChange = (content, delta, source) => {
     if (source === "user") {
+      // FIX: send docId & delta as object for server
       socket.emit("send-delta", { docId: id, delta });
       socket.emit("typing", { docId: id, user: { email: user.email } });
       queueSave();
@@ -98,6 +101,7 @@ export default function EditDocs() {
     });
   };
 
+  /* ------------------- Export as PDF ------------------- */
   const exportPDF = async () => {
     const editor = quillRef.current?.getEditor();
     if (!editor) return;
@@ -114,69 +118,62 @@ export default function EditDocs() {
     pdf.save(`${title || "document"}.pdf`);
   };
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <p className="text-lg text-gray-600 animate-pulse">Loading…</p>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-lg text-gray-600 animate-pulse">Loading…</p>
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      {/* Main Container */}
-      <div className="max-w-5xl mx-auto flex gap-6">
-        {/* Editor Section */}
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-4">
-            <input
-              className="text-2xl font-semibold text-gray-800 w-full border-none focus:ring-2 focus:ring-purple-300 rounded-md p-2 bg-transparent"
-              value={title}
-              onChange={(e) => saveTitle(e.target.value)}
-              placeholder="Document Title"
-            />
-            <button
-              onClick={exportPDF}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm font-medium"
-            >
-              Export as PDF
-            </button>
-          </div>
+      <div className="max-w-5xl mx-auto flex flex-col gap-4">
+        {/* Top bar with Back + Export */}
+        <div className="flex items-center justify-between mb-2">
+          <button
+            onClick={() => navigate("/docs")}
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm font-medium"
+          >
+            ← Back
+          </button>
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm font-medium"
+          >
+            🏠 Home
+          </button>
 
-          {typingUser && (
-            <p className="text-sm text-gray-500 italic mb-2">
-              {typingUser} is typing…
-            </p>
-          )}
-
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <ReactQuill
-              ref={quillRef}
-              theme="snow"
-              onChange={handleChange}
-              className="min-h-[400px] max-h-[600px] overflow-y-auto"
-            />
-          </div>
+          <button
+            onClick={exportPDF}
+            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+          >
+            Export PDF
+          </button>
         </div>
 
-        {/* Presence Sidebar
-        <aside className="hidden lg:block w-64 bg-white shadow-md rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Online Users</h4>
-          {onlineUsers.length === 0 ? (
-            <p className="text-sm text-gray-400">No one else here</p>
-          ) : (
-            <ul className="space-y-2">
-              {onlineUsers.map((u) => (
-                <li
-                  key={u.uid}
-                  className="text-sm text-gray-600 truncate"
-                  title={u.email}
-                >
-                  <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                  {u.email || "Anonymous"}
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside> */}
+        {/* Title */}
+        <input
+          className="text-2xl font-semibold text-gray-800 w-full border-none focus:ring-2 focus:ring-purple-300 rounded-md p-2 bg-transparent"
+          value={title}
+          onChange={(e) => saveTitle(e.target.value)}
+          placeholder="Document Title"
+        />
+
+        {typingUser && (
+          <p className="text-sm text-gray-500 italic mb-2">
+            {typingUser} is typing…
+          </p>
+        )}
+
+        {/* Editor */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <ReactQuill
+            ref={quillRef}
+            theme="snow"
+            onChange={handleChange}
+            className="min-h-[400px] max-h-[600px] overflow-y-auto"
+          />
+        </div>
       </div>
     </div>
   );

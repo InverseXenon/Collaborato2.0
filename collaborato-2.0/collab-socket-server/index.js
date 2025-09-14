@@ -1,4 +1,3 @@
-// collab-socket-server/index.js
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
@@ -8,7 +7,7 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173", // adjust if deployed
+    origin: ["http://localhost:5173", "https://your-frontend.vercel.app"],
     methods: ["GET", "POST"],
   },
 });
@@ -32,15 +31,18 @@ io.on("connection", (socket) => {
       socket.to(docId).emit("user-typing", { email: user.email });
     });
 
-    socket.on("leave-doc", () => {
-      map.delete(socket.id);
-      io.to(docId).emit("presence", Array.from(map.values()));
+    // 🔥 NEW: broadcast quill deltas
+    socket.on("send-delta", ({ docId, delta }) => {
+      socket.to(docId).emit("receive-delta", { delta });
     });
 
-    socket.on("disconnect", () => {
+    const leave = () => {
       map.delete(socket.id);
       io.to(docId).emit("presence", Array.from(map.values()));
-    });
+    };
+
+    socket.on("leave-doc", leave);
+    socket.on("disconnect", leave);
   });
 });
 
