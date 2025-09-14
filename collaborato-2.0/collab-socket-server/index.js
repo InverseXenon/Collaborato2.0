@@ -12,13 +12,15 @@ const io = new Server(httpServer, {
   },
 });
 
-// Track users per docId: { docId: Map<socket.id, userObj> }
 const roomUsers = new Map();
 
 io.on("connection", (socket) => {
   console.log("connected:", socket.id);
 
   socket.on("join-doc", (docId, user) => {
+    socket.data.docId = docId;
+    socket.data.user = user;
+
     socket.join(docId);
 
     if (!roomUsers.has(docId)) roomUsers.set(docId, new Map());
@@ -26,24 +28,30 @@ io.on("connection", (socket) => {
     map.set(socket.id, user);
 
     io.to(docId).emit("presence", Array.from(map.values()));
+  });
 
-    socket.on("typing", () => {
+  socket.on("typing", () => {
+    const { docId, user } = socket.data;
+    if (docId && user) {
       socket.to(docId).emit("user-typing", { email: user.email });
-    });
+    }
+  });
 
-    // 🔥 NEW: broadcast quill deltas
-    socket.on("send-delta", ({ docId, delta }) => {
-      socket.to(docId).emit("receive-delta", { delta });
-    });
+  socket.on("send-delta", ({ docId, delta }) => {
+    socket.to(docId).emit("receive-delta", { delta });
+  });
 
-    const leave = () => {
+  const leave = () => {
+    const { docId } = socket.data;
+    const map = roomUsers.get(docId);
+    if (docId && map) {
       map.delete(socket.id);
       io.to(docId).emit("presence", Array.from(map.values()));
-    };
+    }
+  };
 
-    socket.on("leave-doc", leave);
-    socket.on("disconnect", leave);
-  });
+  socket.on("leave-doc", leave);
+  socket.on("disconnect", leave);
 });
 
 httpServer.listen(4000, () =>
