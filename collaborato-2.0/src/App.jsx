@@ -7,6 +7,7 @@ import Home from "./components/Home";
 import Dashboard from "./components/Dashboard";
 import { useAuth } from "./components/AuthProvider";
 import Docs from "./components/Docs";
+import EditDocs from "./components/EditDocs";
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -45,6 +46,14 @@ export default function App() {
           element={
             <PrivateRoute>
               <Docs />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/edit/:id"
+          element={
+            <PrivateRoute>
+              <EditDocs />
             </PrivateRoute>
           }
         />
